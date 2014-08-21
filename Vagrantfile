@@ -58,6 +58,21 @@ Vagrant.configure("2") do |config|
     rs.image    = /Raring/
   end
 
+  config.vm.provider :openstack do |os, override|
+    override.vm.box = "dummy"
+    override.ssh.private_key_path = ENV["PRIVATE_KEY"]
+    os.username = ENV["OS_USERNAME"]
+    os.api_key = ENV["OS_PASSWORD"]
+    os.flavor   = /m1.xxlarge/
+    os.image    = /Ubuntu 14.04/
+    os.endpoint = ENV["OS_AUTH_URL"]
+    os.keypair_name = ENV["OS_KEYPAIR_NAME"]
+    os.ssh_username = "ubuntu"
+    os.tenant = ENV["OS_TENANT_NAME"]
+    os.address_id = :floating_ip
+    os.floating_ip = :auto
+  end
+
   config.vm.provider :digital_ocean do |digocean, override|
     override.vm.box = "dummy"
     override.ssh.private_key_path = ENV["PRIVATE_KEY"]
