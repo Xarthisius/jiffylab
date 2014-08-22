@@ -33,7 +33,7 @@ sudo useradd -g docker jiffylabweb
 sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 5000
 sudo chown -R jiffylabweb /usr/local/etc/jiffylab/webapp/
 
-docker pull ytproject/yt-stable:jiffylab
+docker pull ytproject/yt-devel:jiffylab
 # docker build /usr/local/etc/jiffylab/docker-builds/base
 
 # add a modicum of security - don't run the webapp as root

@@ -25,15 +25,15 @@ app.config['SECRET_KEY'] = 'devkey'
 
 CONTAINER_STORAGE = "/usr/local/etc/jiffylab/webapp/containers.json"
 SERVICES_HOST = '127.0.0.1'
-BASE_IMAGE = 'ytproject/yt-stable'
+BASE_IMAGE = 'ytproject/yt-devel'
 BASE_IMAGE_TAG = 'jiffylab'
 
 initial_memory_budget = psutil.virtual_memory().free  # or can use available for vm
 
-# how much memory should each container be limited to
-CONTAINER_MEM_LIMIT = 1024 * 1024 * 100
+# how much memory should each container be limited to, in k.
+CONTAINER_MEM_LIMIT = 1024 * 1024 * 1024 * 2
 # how much memory must remain in order for a new container to start?
-MEM_MIN = CONTAINER_MEM_LIMIT + 1024 * 1024 * 20
+MEM_MIN = CONTAINER_MEM_LIMIT + 1024 * 1024 * 128
 
 app.config.from_object(__name__)
 app.config.from_envvar('FLASKAPP_SETTINGS', silent=True)
