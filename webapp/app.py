@@ -25,7 +25,8 @@ app.config['SECRET_KEY'] = 'devkey'
 
 CONTAINER_STORAGE = "/usr/local/etc/jiffylab/webapp/containers.json"
 SERVICES_HOST = '127.0.0.1'
-BASE_IMAGE = 'ptone/jiffylab-base'
+BASE_IMAGE = 'ytproject/yt-stable'
+BASE_IMAGE_TAG = 'jiffylab'
 
 initial_memory_budget = psutil.virtual_memory().free  # or can use available for vm
 
@@ -79,10 +80,10 @@ def slugify(text, delim=u'-'):
     return unicode(delim.join(result))
 
 
-def get_image(image_name=BASE_IMAGE):
+def get_image(image_name=BASE_IMAGE, image_tag=BASE_IMAGE_TAG):
     # TODO catch ConnectionError - requests.exceptions.ConnectionError
     for image in docker_client.images():
-        if image['Repository'] == image_name and image['Tag'] == 'latest':
+        if image['Repository'] == image_name and image['Tag'] == image_tag:
             return image
     raise ContainerException("No image found")
     return None
