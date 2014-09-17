@@ -5,3 +5,5 @@ Flask-WTF==0.8.3
 WTForms==1.0.4
 requests==2.2.1
 psutil
+Flask-OpenID
+sqlite3dbm
