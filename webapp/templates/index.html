@@ -25,6 +25,8 @@
       </div>
     </div>
 
+    <script src="dist/js/bootstrap.min.js"></script>
+
     <div class="container">
       {% if g.user %}
 
@@ -49,16 +51,7 @@
           provided is currently only used as a label for now, so you can enter
           what you want.
       </div>
-            <form class="form form-horizontal" method="post">
-            {{ form.hidden_tag() }}
-            {{ wtf.form_errors(form, False) }}
-
-            {{ wtf.horizontal_field(form.email) }}
-
-            <div class="form-actions">
-               <button name="action_save" type="submit" class="btn btn-primary">Get Started</button>
-            </div>
-          </form>
+	<p><a class="btn btn-large btn-primary" href="/login">Login using OpenID</a></p>
     {% endif %}
     </div>
 

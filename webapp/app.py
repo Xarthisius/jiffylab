@@ -9,9 +9,8 @@ import time
 from unicodedata import normalize
 
 import docker
-from flask import Flask, render_template, session, g, redirect, url_for
+from flask import Flask, render_template, session, g, redirect
 from flask.ext.bootstrap import Bootstrap
-from flask.ext.wtf import Form, TextField
 
 import psutil
 import requests
@@ -33,7 +32,8 @@ SERVICES_HOST = '127.0.0.1'
 BASE_IMAGE = 'ytproject/yt-devel'
 BASE_IMAGE_TAG = 'jiffylab'
 
-initial_memory_budget = psutil.virtual_memory().free  # or can use available for vm
+# or can use available for vm
+initial_memory_budget = psutil.virtual_memory().free
 
 # how much memory should each container be limited to, in k.
 CONTAINER_MEM_LIMIT = 1024 * 1024 * 128
@@ -46,13 +46,14 @@ app.config.from_envvar('FLASKAPP_SETTINGS', silent=True)
 Bootstrap(app)
 
 docker_client = docker.Client(base_url='unix://var/run/docker.sock',
-                  version='1.6',
-                  timeout=10)
+                              version='1.6',
+                              timeout=10)
 
 lock = threading.Lock()
 
 
 class ContainerException(Exception):
+
     """
     There was some problem generating or launching a docker container
     for the user
@@ -60,18 +61,6 @@ class ContainerException(Exception):
     pass
 
 
-class UserForm(Form):
-    # TODO use HTML5 email input
-    email = TextField('Email', description='Please enter your email address.')
-
-
-#@app.before_request
-#def get_current_user():
-#    g.user = None
-#    email = session.get('email')
-#    if email is not None:
-#        g.user = email
-#
 _punct_re = re.compile(r'[\t !"#$%&\'()*\-/<=>?@\[\\\]^_`{|},.]+')
 
 
@@ -117,13 +106,15 @@ def check_memory():
     account, you never know when it may be cashed.
     """
     # the overbook factor says that each container is unlikely to be using its
-    # full memory limit, and so this is a guestimate of how much you can overbook
-    # your memory
+    # full memory limit, and so this is a guestimate of how much you can
+    # overbook your memory
     overbook_factor = .8
-    remaining_budget = initial_memory_budget - len(docker_client.containers()) * CONTAINER_MEM_LIMIT * overbook_factor
+    remaining_budget = initial_memory_budget - \
+        len(docker_client.containers()) * CONTAINER_MEM_LIMIT * overbook_factor
     if remaining_budget < MEM_MIN:
-        raise ContainerException("Sorry, not enough free memory to start your container")
-
+        raise ContainerException(
+            "Sorry, not enough free memory to start your container"
+        )
 
 
 def remember_container(name, containerid):
@@ -151,12 +142,14 @@ def forget_container(name):
             return False
         return True
 
+
 def add_portmap(cont):
     if cont['Ports']:
         # a bit of a crazy comprehension to turn:
         # Ports': u'49166->8888, 49167->22'
         # into a useful dict {8888: 49166, 22: 49167}
-        cont['portmap'] = dict([(p['PrivatePort'], p['PublicPort']) for p in cont['Ports']])
+        cont['portmap'] = dict(
+            [(p['PrivatePort'], p['PublicPort']) for p in cont['Ports']])
 
         # wait until services are up before returning container
         # TODO this could probably be factored better when next
@@ -168,8 +161,8 @@ def add_portmap(cont):
             if ipy_wait:
                 try:
                     requests.head("http://{host}:{port}".format(
-                            host=app.config['SERVICES_HOST'],
-                            port=cont['portmap'][8888]))
+                        host=app.config['SERVICES_HOST'],
+                        port=cont['portmap'][8888]))
                     ipy_wait = False
                 except requests.exceptions.ConnectionError:
                     pass
@@ -177,8 +170,8 @@ def add_portmap(cont):
             if shellinabox_wait:
                 try:
                     requests.head("http://{host}:{port}".format(
-                            host=app.config['SERVICES_HOST'],
-                            port=cont['portmap'][4200]))
+                        host=app.config['SERVICES_HOST'],
+                        port=cont['portmap'][4200]))
                     shellinabox_wait = False
                 except requests.exceptions.ConnectionError:
                     pass
@@ -202,12 +195,12 @@ def get_or_make_container(email):
     if not container_id:
         image = get_image()
         cont = docker_client.create_container(
-                image['Id'],
-                None,
-                hostname="{user}box".format(user=name.split('-')[0]),
-                mem_limit=CONTAINER_MEM_LIMIT,
-                ports=[8888, 4200],
-                )
+            image['Id'],
+            None,
+            hostname="{user}box".format(user=name.split('-')[0]),
+            mem_limit=CONTAINER_MEM_LIMIT,
+            ports=[8888, 4200],
+        )
 
         remember_container(name, cont['Id'])
         container_id = cont['Id']
@@ -231,33 +224,30 @@ def get_or_make_container(email):
     container = add_portmap(container)
     return container
 
+# @app.route('/', methods=['GET', 'POST'])
 
-@app.route('/', methods=['GET', 'POST'])
+
+@app.route('/')
 def index():
     try:
         container = None
-        form = UserForm()
         print g.user
         if g.user:
-            # show container:
+            # return "hi user %(id)d (email %(email)s). <a
+            # href='/logout'>logout</a>" %(g.user)
             container = get_or_make_container(g.user)
-        else:
-            if form.validate_on_submit():
-                g.user = form.email.data
-                session['email'] = g.user
-                container = get_or_make_container(g.user)
         return render_template('index.html',
-                container=container,
-                form=form,
-                servicehost=app.config['SERVICES_HOST'],
-                )
+                               container=container,
+                               servicehost=app.config['SERVICES_HOST'],
+                               )
     except ContainerException as e:
-        session.pop('email', None)
+        session.pop('openid', None)
         return render_template('error.html', error=e)
 
 
 def open_db():
-    g.db = getattr(g, 'db', None) or sqlite3dbm.sshelve.open("database.sqlite3")
+    g.db = getattr(g, 'db', None) or sqlite3dbm.sshelve.open(
+        "database.sqlite3")
 
 
 def get_user():
@@ -267,7 +257,7 @@ def get_user():
 
 @app.before_request
 def set_user_if_logged_in():
-    open_db() # just to be explicit ...
+    open_db()  # just to be explicit ...
     g.user = get_user()
 
 
@@ -278,7 +268,7 @@ def login():
         return redirect(oid.get_next_url())
     else:
         return oid.try_login("https://www.google.com/accounts/o8/id",
-            ask_for=['email', 'fullname', 'nickname'])
+                             ask_for=['email', 'fullname', 'nickname'])
 
 
 @oid.after_login
@@ -300,23 +290,8 @@ def logout():
     session.pop('openid', None)
     return redirect(oid.get_next_url())
 
-@app.route('/')
-def hello():
-    if g.user:
-        return "hi user %(id)d (email %(email)s). <a href='/logout'>logout</a>" %(g.user)
-    else:
-        return "not logged in. <a href='/login'>login</a>"
-
-#@app.route('/logout')
-#def logout():
-#    # remove the username from the session if it's there
-#    session.pop('email', None)
-#    return redirect(url_for('index'))
-
 
 if '__main__' == __name__:
     oid = OpenID(app, '/tmp/openid_store', safe_roots=[])
     # app.run(debug=True, host='0.0.0.0')
     pass
-
-
