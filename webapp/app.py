@@ -16,7 +16,12 @@ from flask.ext.wtf import Form, TextField
 import psutil
 import requests
 
+from flask.ext.openid import OpenID
+import sqlite3dbm
+
 app = Flask(__name__)
+app.secret_key = "arglebargle"
+oid = OpenID(app, os.path.join(os.path.dirname(__file__), 'openid_store'))
 
 app.config['BOOTSTRAP_USE_MINIFIED'] = True
 app.config['BOOTSTRAP_USE_CDN'] = True
@@ -31,7 +36,7 @@ BASE_IMAGE_TAG = 'jiffylab'
 initial_memory_budget = psutil.virtual_memory().free  # or can use available for vm
 
 # how much memory should each container be limited to, in k.
-CONTAINER_MEM_LIMIT = 1024 * 1024 * 1024 * 2
+CONTAINER_MEM_LIMIT = 1024 * 1024 * 128
 # how much memory must remain in order for a new container to start?
 MEM_MIN = CONTAINER_MEM_LIMIT + 1024 * 1024 * 128
 
@@ -60,13 +65,13 @@ class UserForm(Form):
     email = TextField('Email', description='Please enter your email address.')
 
 
-@app.before_request
-def get_current_user():
-    g.user = None
-    email = session.get('email')
-    if email is not None:
-        g.user = email
-
+#@app.before_request
+#def get_current_user():
+#    g.user = None
+#    email = session.get('email')
+#    if email is not None:
+#        g.user = email
+#
 _punct_re = re.compile(r'[\t !"#$%&\'()*\-/<=>?@\[\\\]^_`{|},.]+')
 
 
@@ -251,14 +256,66 @@ def index():
         return render_template('error.html', error=e)
 
 
+def open_db():
+    g.db = getattr(g, 'db', None) or sqlite3dbm.sshelve.open("database.sqlite3")
+
+
+def get_user():
+    open_db()
+    return g.db.get('oid-' + session.get('openid', ''))
+
+
+@app.before_request
+def set_user_if_logged_in():
+    open_db() # just to be explicit ...
+    g.user = get_user()
+
+
+@app.route("/login")
+@oid.loginhandler
+def login():
+    if g.user is not None:
+        return redirect(oid.get_next_url())
+    else:
+        return oid.try_login("https://www.google.com/accounts/o8/id",
+            ask_for=['email', 'fullname', 'nickname'])
+
+
+@oid.after_login
+def new_user(resp):
+    session['openid'] = resp.identity_url
+    if get_user() is None:
+        user_id = g.db.get('user-count', 0)
+        g.db['user-count'] = user_id + 1
+        g.db['oid-' + session['openid']] = {
+            'id': user_id,
+            'email': resp.email,
+            'fullname': resp.fullname,
+            'nickname': resp.nickname}
+    return redirect(oid.get_next_url())
+
+
 @app.route('/logout')
 def logout():
-    # remove the username from the session if it's there
-    session.pop('email', None)
-    return redirect(url_for('index'))
+    session.pop('openid', None)
+    return redirect(oid.get_next_url())
+
+@app.route('/')
+def hello():
+    if g.user:
+        return "hi user %(id)d (email %(email)s). <a href='/logout'>logout</a>" %(g.user)
+    else:
+        return "not logged in. <a href='/login'>login</a>"
+
+#@app.route('/logout')
+#def logout():
+#    # remove the username from the session if it's there
+#    session.pop('email', None)
+#    return redirect(url_for('index'))
 
 
 if '__main__' == __name__:
+    oid = OpenID(app, '/tmp/openid_store', safe_roots=[])
     # app.run(debug=True, host='0.0.0.0')
     pass
 
